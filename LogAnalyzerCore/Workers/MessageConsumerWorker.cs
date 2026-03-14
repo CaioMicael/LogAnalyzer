@@ -1,0 +1,23 @@
+﻿using LogAnalyzer.LogAnalyzerCore.Interfaces;
+
+namespace LogAnalyzer.LogAnalyzerCore.Workers
+{
+    public class MessageConsumerWorker : BackgroundService
+    {
+        private readonly IMessageConsumer _consumer;
+
+        public MessageConsumerWorker(IMessageConsumer consumer)
+        {
+            _consumer = consumer;
+        }
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            await _consumer.ConsumeAsync(async (message) =>
+            {
+                Console.WriteLine($"Received message: {message}");
+                await Task.CompletedTask;
+            });
+        }
+    }
+}
