@@ -1,6 +1,6 @@
 ﻿using LogAnalyzer.LogAnalyzerCore.Interfaces;
 
-namespace LogAnalyzer.LogAnalyzerCore.Workers
+namespace LogAnalyzer.Domain.Workers
 {
     public class MessageConsumerWorker : BackgroundService
     {
@@ -15,7 +15,7 @@ namespace LogAnalyzer.LogAnalyzerCore.Workers
         {
             await _consumer.ConsumeAsync(async (message) =>
             {
-                Console.WriteLine($"Received message: {message}");
+                Console.WriteLine($"Received message: {message}");  
                 await Task.CompletedTask;
             });
         }

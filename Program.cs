@@ -1,6 +1,6 @@
+using LogAnalyzer.Domain.Workers;
 using LogAnalyzer.LogAnalyzerCore.Interfaces;
 using LogAnalyzer.LogAnalyzerCore.RabbitMQ;
-using LogAnalyzer.LogAnalyzerCore.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
