@@ -15,6 +15,7 @@ namespace LogAnalyzer.Domain.Workers
         {
             await _consumer.ConsumeAsync(async (message) =>
             {
+                Thread.Sleep(1);
                 Console.WriteLine($"Received message: {message}");  
                 await Task.CompletedTask;
             });
