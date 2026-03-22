@@ -24,7 +24,7 @@ namespace LogAnalyzer.LogAnalyzerCore.RabbitMQ
         public async Task ConsumeAsync(Func<string, Task> onMessageReceived, CancellationToken cancellationToken)
         {
             var factory = new ConnectionFactory { HostName = _hostName };
-            _connection = await factory.CreateConnectionAsync();
+            _connection = await factory.CreateConnectionAsync(cancellationToken);
             _channel = await _connection.CreateChannelAsync(options: null, cancellationToken);
 
             await _channel.QueueDeclareAsync(
