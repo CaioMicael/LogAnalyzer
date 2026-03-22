@@ -33,7 +33,7 @@ namespace LogAnalyzer.Domain.Workers
                 }
 
                 await Task.CompletedTask;
-            });
+            }, stoppingToken);
         }
 
         private static bool TryParseLogResponseTime(string message, out LogResponseTime logResponseTime)

@@ -1,6 +1,7 @@
 ﻿using LogAnalyzer.LogAnalyzerCore.Interfaces;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Text;
 
 namespace LogAnalyzer.LogAnalyzerCore.RabbitMQ
 {
@@ -20,30 +21,62 @@ namespace LogAnalyzer.LogAnalyzerCore.RabbitMQ
                 ?? throw new ArgumentNullException("Variável de ambiente RABBITMQ_QUEUE não definida");
         }
 
-        public async Task ConsumeAsync(Func<string, Task> onMessageReceived)
+        public async Task ConsumeAsync(Func<string, Task> onMessageReceived, CancellationToken cancellationToken)
         {
             var factory = new ConnectionFactory { HostName = _hostName };
             _connection = await factory.CreateConnectionAsync();
-            _channel = await _connection.CreateChannelAsync();
+            _channel = await _connection.CreateChannelAsync(options: null, cancellationToken);
 
             await _channel.QueueDeclareAsync(
                 queue: _queueName,
                 durable: false,
                 exclusive: false,
                 autoDelete: false,
-                arguments: null);
+                arguments: null,
+                cancellationToken: cancellationToken);
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
 
             consumer.ReceivedAsync += async (model, ea) =>
             {
-                var body = ea.Body.ToArray();
-                var message = System.Text.Encoding.UTF8.GetString(body);
-                await onMessageReceived(message);
-                await _channel.BasicAckAsync(deliveryTag: ea.DeliveryTag, multiple: false);
+                try
+                {
+                    var message = Encoding.UTF8.GetString(ea.Body.Span);
+                    await onMessageReceived(message);
+                    await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken);
+                }
+                catch
+                {
+                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, cancellationToken);
+                }
             };
 
-            await _channel.BasicConsumeAsync(queue: _queueName, autoAck: false, consumer: consumer);
+            await _channel.BasicConsumeAsync(
+                queue: _queueName, 
+                autoAck: false, 
+                consumer: consumer, 
+                cancellationToken);
+
+            try
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // shutdown esperado
+            }
+
+            if (_channel is not null)
+            {
+                await _channel.CloseAsync(cancellationToken);
+                await _channel.DisposeAsync();
+            }
+
+            if (_connection is not null)
+            {
+                await _connection.CloseAsync(cancellationToken);
+                await _connection.DisposeAsync();
+            }
         }
     }
 }

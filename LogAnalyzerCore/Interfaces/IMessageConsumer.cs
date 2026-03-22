@@ -15,6 +15,6 @@ namespace LogAnalyzer.LogAnalyzerCore.Interfaces
         /// desde que a implementação do método ConsumeAsync seja feita de acordo com o broker escolhido.
         /// </summary>
         /// <param name="onMessageReceived">Delegate que executa o processamento da mensagem</param>
-        Task ConsumeAsync(Func<string, Task> onMessageReceived);
+        Task ConsumeAsync(Func<string, Task> onMessageReceived, CancellationToken cancellationToken);
     }
 }
