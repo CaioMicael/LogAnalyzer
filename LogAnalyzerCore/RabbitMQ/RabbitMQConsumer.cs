@@ -11,14 +11,17 @@ namespace LogAnalyzer.LogAnalyzerCore.RabbitMQ
         private readonly string _queueName;
         private IConnection? _connection;
         private IChannel? _channel;
+        private ILogger<RabbitMQConsumer> _logger;
 
-        public RabbitMQConsumer()
+        public RabbitMQConsumer(ILogger<RabbitMQConsumer> logger)
         {
             _hostName = Environment.GetEnvironmentVariable("RABBITMQ_HOST")
                 ?? throw new ArgumentNullException("Variável de ambiente RABBITMQ_HOST não definida");
 
             _queueName = Environment.GetEnvironmentVariable("RABBITMQ_QUEUE")
                 ?? throw new ArgumentNullException("Variável de ambiente RABBITMQ_QUEUE não definida");
+
+            _logger = logger;
         }
 
         public async Task ConsumeAsync(Func<string, Task> onMessageReceived, CancellationToken cancellationToken)
@@ -63,6 +66,7 @@ namespace LogAnalyzer.LogAnalyzerCore.RabbitMQ
             }
             catch (OperationCanceledException)
             {
+                _logger.LogInformation("Operação de fila cancelada");
                 // shutdown esperado
             }
 
