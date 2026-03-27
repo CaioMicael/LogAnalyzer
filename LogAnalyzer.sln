@@ -3,7 +3,18 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogAnalyzer", "LogAnalyzer.csproj", "{07E2DAB8-A366-42AA-A5CA-B0651E0520E1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogAnalyzer.Domain", "LogAnalyzer.Domain\LogAnalyzer.Domain.csproj", "{786889EA-F11D-4EEE-BF21-D8AFDB80BB82}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogAnalyzer.Worker", "LogAnalyzer.Worker\LogAnalyzer.Worker.csproj", "{392A36FD-25BB-49A3-A250-A6D9C1FAABD0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{2015F56A-B79E-4C27-B946-E614F52FB055} = {2015F56A-B79E-4C27-B946-E614F52FB055}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogAnalyzer.Infrastructure", "LogAnalyzer.Infrastructure\LogAnalyzer.Infrastructure.csproj", "{2015F56A-B79E-4C27-B946-E614F52FB055}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogAnalyzer.Application", "LogAnalyzer.Application\LogAnalyzer.Application.csproj", "{BCC88E66-BE0A-44FD-B333-038DEB47A7E2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogAnalyzer.API", "LogAnalyzer.API\LogAnalyzer.API.csproj", "{BF1CF4A1-E327-402E-9264-6FC88CA4E275}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +22,26 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{07E2DAB8-A366-42AA-A5CA-B0651E0520E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{07E2DAB8-A366-42AA-A5CA-B0651E0520E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{07E2DAB8-A366-42AA-A5CA-B0651E0520E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{07E2DAB8-A366-42AA-A5CA-B0651E0520E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{786889EA-F11D-4EEE-BF21-D8AFDB80BB82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{786889EA-F11D-4EEE-BF21-D8AFDB80BB82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{786889EA-F11D-4EEE-BF21-D8AFDB80BB82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{786889EA-F11D-4EEE-BF21-D8AFDB80BB82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{392A36FD-25BB-49A3-A250-A6D9C1FAABD0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{392A36FD-25BB-49A3-A250-A6D9C1FAABD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{392A36FD-25BB-49A3-A250-A6D9C1FAABD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{392A36FD-25BB-49A3-A250-A6D9C1FAABD0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2015F56A-B79E-4C27-B946-E614F52FB055}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2015F56A-B79E-4C27-B946-E614F52FB055}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2015F56A-B79E-4C27-B946-E614F52FB055}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2015F56A-B79E-4C27-B946-E614F52FB055}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BCC88E66-BE0A-44FD-B333-038DEB47A7E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BCC88E66-BE0A-44FD-B333-038DEB47A7E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BCC88E66-BE0A-44FD-B333-038DEB47A7E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BCC88E66-BE0A-44FD-B333-038DEB47A7E2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF1CF4A1-E327-402E-9264-6FC88CA4E275}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF1CF4A1-E327-402E-9264-6FC88CA4E275}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF1CF4A1-E327-402E-9264-6FC88CA4E275}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF1CF4A1-E327-402E-9264-6FC88CA4E275}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
