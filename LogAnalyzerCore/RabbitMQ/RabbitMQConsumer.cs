@@ -11,7 +11,7 @@ namespace LogAnalyzer.LogAnalyzerCore.RabbitMQ
         private readonly string _queueName;
         private IConnection? _connection;
         private IChannel? _channel;
-        private ILogger<RabbitMQConsumer> _logger;
+        private readonly ILogger<RabbitMQConsumer> _logger;
 
         public RabbitMQConsumer(ILogger<RabbitMQConsumer> logger)
         {

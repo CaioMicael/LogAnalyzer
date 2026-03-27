@@ -1,12 +1,13 @@
-﻿using System.Globalization;
-using System.Text.RegularExpressions;
-using LogAnalyzer.Domain.DTO;
+﻿using LogAnalyzer.Domain.DTO;
 using LogAnalyzer.LogAnalyzerCore.Interfaces;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace LogAnalyzer.Domain.Workers
 {
     public class MessageConsumerWorker : BackgroundService
     {
+        private readonly ILogger<MessageConsumerWorker> _logger;
         private static readonly Regex LogRegex = new(
             "^(?<ip>\\S+)\\s+\\S+\\s+\\S+\\s+\\[[^\\]]+\\]\\s+\"[A-Z]+\\s+(?<url>\\S+)\\s+[^\"]+\"\\s+\\d+\\s+\\d+\\s+\"[^\"]*\"\\s+\"[^\"]*\"\\s+(?<responseTime>\\d+(?:\\.\\d+)?)$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -15,9 +16,10 @@ namespace LogAnalyzer.Domain.Workers
         private readonly List<LogResponseTime> _parsedLogs = [];
         private readonly object _parsedLogsLock = new();
 
-        public MessageConsumerWorker(IMessageConsumer consumer)
+        public MessageConsumerWorker(IMessageConsumer consumer, ILogger<MessageConsumerWorker> logger)
         {
             _consumer = consumer;
+            _logger = logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
