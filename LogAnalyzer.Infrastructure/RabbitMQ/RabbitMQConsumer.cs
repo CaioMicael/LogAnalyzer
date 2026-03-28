@@ -1,5 +1,4 @@
 ﻿using LogAnalyzer.Core.Interfaces;
-using LogAnalyzer.Core.Interfaces;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
