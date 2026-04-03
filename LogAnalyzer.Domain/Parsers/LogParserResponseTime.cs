@@ -1,6 +1,7 @@
 ﻿using LogAnalyzer.Domain.DTO;
 using LogAnalyzer.Domain.Interfaces;
-using System.Globalization;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace LogAnalyzer.Domain.Parsers
 {
@@ -8,6 +9,13 @@ namespace LogAnalyzer.Domain.Parsers
     // {ip} - - [{timestamp}] "{method} {url} {protocol}" {status} {bytes} "{referer}" "{user-agent}" {responseTime}
     public class LogParserResponseTime : ILogParser
     {
+        private readonly ILogger<LogParserResponseTime> _logger;
+
+        public LogParserResponseTime(ILogger<LogParserResponseTime> logger)
+        {
+            _logger = logger;
+        }
+
         public bool TryParseLog(string message, out LogResponseTime logResponseTime)
         {
             logResponseTime = new LogResponseTime();
@@ -15,12 +23,15 @@ namespace LogAnalyzer.Domain.Parsers
             if (string.IsNullOrWhiteSpace(message))
                 return false;
 
+            var sw = Stopwatch.StartNew();
             var line = message.AsSpan().TrimEnd();
+            _logger.LogDebug("[Parser] TrimEnd: {µs}µs", sw.Elapsed.TotalMicroseconds); sw.Restart();
 
             // 1. IP — tudo antes do primeiro espaço
             var firstSpace = line.IndexOf(' ');
             if (firstSpace < 0) return false;
             var ip = line[..firstSpace].ToString();
+            _logger.LogDebug("[Parser] Etapa 1 - IP: {µs}µs", sw.Elapsed.TotalMicroseconds); sw.Restart();
 
             // 2. Avança até o bloco de timestamp [...] e passa por ele
             var timestampOpen = line.IndexOf('[');
@@ -29,6 +40,7 @@ namespace LogAnalyzer.Domain.Parsers
             if (timestampClose < timestampOpen) return false;
 
             var afterTimestamp = line[(timestampClose + 1)..];
+            _logger.LogDebug("[Parser] Etapa 2 - Timestamp: {µs}µs", sw.Elapsed.TotalMicroseconds); sw.Restart();
 
             // 3. Campo de requisição — primeiro bloco entre aspas: "METHOD URL PROTOCOL"
             var requestOpen = afterTimestamp.IndexOf('"');
@@ -47,6 +59,7 @@ namespace LogAnalyzer.Domain.Parsers
                 : request[(urlStart + 1)..(urlStart + 1 + urlEnd)].ToString();
 
             var afterRequest = afterTimestamp[(requestClose + 1)..];
+            _logger.LogDebug("[Parser] Etapa 3 - Request/URL: {µs}µs", sw.Elapsed.TotalMicroseconds); sw.Restart();
 
             // 4. Pula status code e bytes; localiza o referer entre aspas
             var refererOpen = afterRequest.IndexOf('"');
@@ -56,6 +69,7 @@ namespace LogAnalyzer.Domain.Parsers
             refererClose += refererOpen + 1;
 
             var afterReferer = afterRequest[(refererClose + 1)..];
+            _logger.LogDebug("[Parser] Etapa 4 - Referer: {µs}µs", sw.Elapsed.TotalMicroseconds); sw.Restart();
 
             // 5. User-agent — próximo bloco entre aspas
             var uaOpen = afterReferer.IndexOf('"');
@@ -63,11 +77,13 @@ namespace LogAnalyzer.Domain.Parsers
             var uaClose = afterReferer[(uaOpen + 1)..].IndexOf('"');
             if (uaClose < 0) return false;
             uaClose += uaOpen + 1;
+            _logger.LogDebug("[Parser] Etapa 5 - User-Agent: {µs}µs", sw.Elapsed.TotalMicroseconds); sw.Restart();
 
-            // 6. Tempo de resposta — texto restante após o user-agent
+            // 6. Tempo de resposta — texto restante após o user-agent (valor inteiro em ms)
             var responseTimeRaw = afterReferer[(uaClose + 1)..].Trim();
-            if (!float.TryParse(responseTimeRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out var responseTime))
+            if (!int.TryParse(responseTimeRaw, out var responseTime))
                 return false;
+            _logger.LogDebug("[Parser] Etapa 6 - ResponseTime: {µs}µs", sw.Elapsed.TotalMicroseconds);
 
             logResponseTime = new LogResponseTime
             {
