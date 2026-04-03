@@ -56,6 +56,10 @@ namespace LogAnalyzer.Workers.Workers
                             logResponseTime.RequestURL,
                             logResponseTime.ResponseTime);
                     }
+                    else
+                    {
+                        _logger.LogWarning("Falha ao parsear registro: {Linha}", line);
+                    }
                 }
 
                 stopwatchLote.Stop();
