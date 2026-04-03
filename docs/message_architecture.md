@@ -1,65 +1,109 @@
-﻿# Arquitetura de Consumo de Mensagens
+# Arquitetura de Consumo de Mensagens
 
 ## Objetivo
 
-A implementação atual foi desenhada para desacoplar o consumo de mensagens do broker específico, permitindo que diferentes tecnologias (ex.: RabbitMQ, Kafka, Azure Service Bus) possam ser usadas sem alterar o worker que processa as mensagens.
+A implementação foi desenhada para desacoplar o consumo de mensagens do broker específico e o parse de logs do formato específico, permitindo que diferentes tecnologias (ex.: RabbitMQ, Kafka, Azure Service Bus) e diferentes formatos de log possam ser trocados sem alterar o worker que processa as mensagens.
 
 ---
 
-## Abstração principal: `IMessageConsumer`
+## Abstrações principais
 
-O contrato `IMessageConsumer` define o ponto de extensão para qualquer broker:
+### `IMessageConsumer`
 
-### O que isso permite
+Define o ponto de extensão para qualquer broker de mensagens:
 
 - Trocar o broker sem impactar o worker.
 - Definir qualquer lógica de processamento via delegate `onMessageReceived`.
 - Manter o worker focado em **processar mensagem**, e não em detalhes de conexão/protocolo.
 
+### `ILogParser`
+
+Define o ponto de extensão para qualquer formato de arquivo de log:
+
+- Trocar o formato de log sem impactar o worker.
+- Cada implementação é responsável por interpretar um formato específico.
+- Novos formatos (Nginx, IIS, etc.) devem ser novas implementações, sem modificar as existentes.
+
 ---
 
-## Implementação atual: `RabbitMQConsumer`
+## Implementações atuais
 
-A classe `RabbitMQConsumer` implementa `IMessageConsumer` usando `RabbitMQ.Client`.
+### `RabbitMQConsumer`
 
-### Fluxo atual no `ConsumeAsync`
+Implementa `IMessageConsumer` usando `RabbitMQ.Client`. Lê `RABBITMQ_HOST` e `RABBITMQ_QUEUE` de variáveis de ambiente.
 
-1. Cria conexão com RabbitMQ (`HostName = "localhost"`).
+**Fluxo no `ConsumeAsync`:**
+
+1. Cria conexão com RabbitMQ.
 2. Cria canal (`IChannel`).
-3. Declara a fila `log_queue`.
+3. Declara a fila configurada.
 4. Cria um `AsyncEventingBasicConsumer`.
-5. Ao receber mensagem:
-   - converte bytes para `string` (UTF-8),
-   - executa o callback `onMessageReceived`,
-   - confirma o processamento com `BasicAckAsync`.
+5. Ao receber mensagem: converte bytes para `string` (UTF-8), executa o callback `onMessageReceived`, confirma com `BasicAckAsync`.
 6. Inicia consumo com `autoAck: false` (ack manual).
+
+### `LogParserResponseTime`
+
+Implementa `ILogParser` para o **Apache Combined Log Format** com campo extra de tempo de resposta:
+
+```
+{ip} - - [{timestamp}] "{method} {url} {protocol}" {status} {bytes} "{referer}" "{user-agent}" {responseTime}
+```
+
+Utiliza parser posicional baseado em `Span<char>`, navegando pelos delimitadores estruturais do formato (`[`, `]`, `"`) em vez de regex. Extrai: `OriginIP`, `RequestURL` e `ResponseTime`.
 
 ---
 
 ## Worker consumidor: `MessageConsumerWorker`
 
-O `MessageConsumerWorker` herda de `BackgroundService` e depende apenas de `IMessageConsumer`.
+O `MessageConsumerWorker` herda de `BackgroundService` e depende de `IMessageConsumer` e `ILogParser`.
 
-No `ExecuteAsync`, ele inicia o consumo.
+**Fluxo no `ExecuteAsync`:**
 
-Isso reforça a arquitetura: o worker não conhece RabbitMQ, apenas o contrato de consumo.
+1. Inicia o consumo via `IMessageConsumer`.
+2. Ao receber uma mensagem (arquivo de log completo), divide por `\n` — cada linha é um registro.
+3. Para cada linha, chama `ILogParser.TryParseLog`.
+4. Registros parseados com sucesso são acumulados em `_parsedLogs`.
+5. Falhas são registradas como `Warning` com a linha original.
+6. Ao final do lote, loga um resumo com total processado, sucessos e tempo médio por registro.
+
+O worker não conhece RabbitMQ nem o formato Apache — apenas os contratos de consumo e parse.
 
 ---
 
 ## Registro no DI (`Program.cs`)
 
-A composição atual registra:
-
-- `IMessageConsumer` → `RabbitMQConsumer` (singleton)
-- `MessageConsumerWorker` como hosted service
-
-Com isso, ao iniciar a aplicação, o worker é executado e passa a consumir mensagens da fila.
+| Interface | Implementação | Ciclo de vida |
+|---|---|---|
+| `IMessageConsumer` | `RabbitMQConsumer` | Singleton |
+| `ILogParser` | `LogParserResponseTime` | Singleton |
+| `MessageConsumerWorker` | — | Hosted Service |
 
 ---
 
-## Resumo da arquitetura atual
+## Docker Compose
 
-- Há uma **abstração de consumo** (`IMessageConsumer`).
-- O broker atual é **RabbitMQ** (`RabbitMQConsumer`).
-- O processamento da mensagem é injetado por função (`Func<string, Task>`), permitindo qualquer método de tratamento.
-- A arquitetura já está preparada para evolução com novos brokers sem alterar o worker
+A solução roda com um único comando:
+
+```bash
+docker compose up --build
+```
+
+Serviços orquestrados:
+
+| Serviço | Porta |
+|---|---|
+| RabbitMQ (AMQP) | 5672 |
+| RabbitMQ Management | 15672 |
+| LogAnalyzer.API | 8080 |
+| LogAnalyzer.Worker | — |
+
+O Worker aguarda o RabbitMQ estar saudável antes de iniciar (`healthcheck` + `depends_on`).
+
+---
+
+## Resumo da arquitetura
+
+- **Duas abstrações independentes**: broker (`IMessageConsumer`) e formato de log (`ILogParser`).
+- **Mensagem = arquivo completo**: cada mensagem na fila contém N linhas; o worker faz o split e processa linha a linha.
+- **Performance**: parser posicional com `Span<char>` opera em ~7µs/registro em steady-state (após JIT warmup). O gargalo em desenvolvimento é o logging de Debug (~125µs/registro).
+- A arquitetura está preparada para evolução com novos brokers e novos formatos sem alterar o worker.

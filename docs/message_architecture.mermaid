@@ -1,11 +1,19 @@
-﻿flowchart TD
-    A["Aplicação iniciada (Program.cs)"] --> B["DI resolve IMessageConsumer como RabbitMQConsumer"]
+flowchart TD
+    A["Aplicação iniciada (Program.cs)"] --> B["DI registra IMessageConsumer → RabbitMQConsumer\nILogParser → LogParserResponseTime"]
     B --> C["MessageConsumerWorker (BackgroundService) inicia"]
     C --> D["Worker chama ConsumeAsync(onMessageReceived)"]
-    D --> E["RabbitMQConsumer cria conexão e canal"]
-    E --> F["Declara fila log_queue"]
-    F --> G["Inicia AsyncEventingBasicConsumer"]
-    G --> H["Mensagem recebida da fila"]
-    H --> I["Converte payload (UTF-8) para string"]
-    I --> J["Executa callback onMessageReceived(message)"]
-    J --> K["Confirma processamento com BasicAckAsync"]
+    D --> E["RabbitMQConsumer cria conexão e canal\n(RABBITMQ_HOST / RABBITMQ_QUEUE via env vars)"]
+    E --> F["Declara fila e inicia AsyncEventingBasicConsumer"]
+    F --> G["Mensagem recebida da fila\n(arquivo de log completo)"]
+    G --> H["Converte payload UTF-8 para string"]
+    H --> I["Split por '\\n' → array de linhas"]
+    I --> J["Para cada linha..."]
+    J --> K["ILogParser.TryParseLog(linha)"]
+    K --> L{"Parse OK?"}
+    L -- "Sim" --> M["Adiciona LogResponseTime a _parsedLogs\nLogDebug com tempo da etapa"]
+    L -- "Não" --> N["LogWarning com a linha que falhou"]
+    M --> O["Próxima linha"]
+    N --> O
+    O --> J
+    J -- "Lote concluído" --> P["LogInformation: resumo do lote\n(total, sucessos, tempo médio/registro)"]
+    P --> Q["BasicAckAsync — confirma mensagem no broker"]
