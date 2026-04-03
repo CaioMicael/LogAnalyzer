@@ -54,6 +54,10 @@ API (currently independent)
 
 **LogAnalyzer.API** — ASP.NET Core Web API (minimal APIs setup, currently has only the default weather scaffold)
 
+## Code Style
+
+- Comments must be written in **Portuguese**.
+
 ## Key Design Decisions
 
 - `IMessageConsumer` abstraction exists specifically to allow swapping RabbitMQ for Kafka or Azure Service Bus without touching the Worker (see `docs/message_architecture.md`).

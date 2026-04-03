@@ -3,6 +3,7 @@ using LogAnalyzer.Domain.DTO;
 using LogAnalyzer.Domain.Interfaces;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace LogAnalyzer.Workers.Workers
 {
@@ -28,13 +29,44 @@ namespace LogAnalyzer.Workers.Workers
         {
             await _consumer.ConsumeAsync(async message =>
             {
-                if (_logParser.TryParseLog(message, out var logResponseTime))
+                // Cada mensagem contém um arquivo inteiro; cada linha é um registro de log
+                var lines = message.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+                var stopwatchLote = Stopwatch.StartNew();
+                var registrosParseados = 0;
+
+                foreach (var line in lines)
                 {
-                    lock (_parsedLogsLock)
+                    // Mede o tempo de parse de cada registro individualmente
+                    var stopwatchRegistro = Stopwatch.StartNew();
+                    var sucesso = _logParser.TryParseLog(line, out var logResponseTime);
+                    stopwatchRegistro.Stop();
+
+                    if (sucesso)
                     {
-                        _parsedLogs.Add(logResponseTime);
+                        lock (_parsedLogsLock)
+                        {
+                            _parsedLogs.Add(logResponseTime);
+                        }
+
+                        registrosParseados++;
+                        _logger.LogDebug("Registro parseado em {ElapsedMicrossegundos}µs — IP: {IP} | URL: {URL} | Tempo de resposta: {TempoResposta}ms",
+                            stopwatchRegistro.Elapsed.TotalMicroseconds,
+                            logResponseTime.OriginIP,
+                            logResponseTime.RequestURL,
+                            logResponseTime.ResponseTime);
                     }
                 }
+
+                stopwatchLote.Stop();
+
+                // Resumo do lote para avaliar performance geral
+                _logger.LogInformation(
+                    "Lote processado: {Parseados}/{Total} registros em {ElapsedMs}ms (média: {MediaMicrossegundos}µs/registro)",
+                    registrosParseados,
+                    lines.Length,
+                    stopwatchLote.Elapsed.TotalMilliseconds,
+                    registrosParseados > 0 ? stopwatchLote.Elapsed.TotalMicroseconds / registrosParseados : 0);
 
                 await Task.CompletedTask;
             }, stoppingToken);
