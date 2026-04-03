@@ -7,12 +7,13 @@ COPY ["LogAnalyzer.Infrastructure/LogAnalyzer.Infrastructure.csproj", "LogAnalyz
 COPY ["LogAnalyzer.Application/LogAnalyzer.Application.csproj", "LogAnalyzer.Application/"]
 COPY ["LogAnalyzer.Worker/LogAnalyzer.Worker.csproj", "LogAnalyzer.Worker/"]
 COPY ["LogAnalyzer.API/LogAnalyzer.API.csproj", "LogAnalyzer.API/"]
-RUN dotnet restore "LogAnalyzer.Worker/LogAnalyzer.Worker.csproj"
+RUN dotnet restore "LogAnalyzer.API/LogAnalyzer.API.csproj"
 
 COPY . .
-RUN dotnet publish "LogAnalyzer.Worker/LogAnalyzer.Worker.csproj" -c Release -o /app/publish --no-restore
+RUN dotnet publish "LogAnalyzer.API/LogAnalyzer.API.csproj" -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/runtime:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "LogAnalyzer.Worker.dll"]
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "LogAnalyzer.API.dll"]
