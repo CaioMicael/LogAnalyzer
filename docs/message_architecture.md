@@ -55,18 +55,18 @@ Utiliza parser posicional baseado em `Span<char>`, navegando pelos delimitadores
 
 ## Worker consumidor: `MessageConsumerWorker`
 
-O `MessageConsumerWorker` herda de `BackgroundService` e depende de `IMessageConsumer` e `ILogParser`.
+O `MessageConsumerWorker` herda de `BackgroundService` e depende de `IMessageConsumer`, `ILogParser` e `ILogRepository`.
 
 **Fluxo no `ExecuteAsync`:**
 
 1. Inicia o consumo via `IMessageConsumer`.
 2. Ao receber uma mensagem (arquivo de log completo), divide por `\n` — cada linha é um registro.
 3. Para cada linha, chama `ILogParser.TryParseLog`.
-4. Registros parseados com sucesso são acumulados em `_parsedLogs`.
+4. Registros parseados com sucesso são persistidos no MongoDB via `ILogRepository` (collection `logs`).
 5. Falhas são registradas como `Warning` com a linha original.
 6. Ao final do lote, loga um resumo com total processado, sucessos e tempo médio por registro.
 
-O worker não conhece RabbitMQ nem o formato Apache — apenas os contratos de consumo e parse.
+O worker não conhece RabbitMQ, o formato Apache nem o MongoDB — apenas os contratos de consumo, parse e persistência.
 
 ---
 
@@ -76,6 +76,7 @@ O worker não conhece RabbitMQ nem o formato Apache — apenas os contratos de c
 |---|---|---|
 | `IMessageConsumer` | `RabbitMQConsumer` | Singleton |
 | `ILogParser` | `LogParserResponseTime` | Singleton |
+| `ILogRepository` | `MongoLogRepository` | Singleton |
 | `MessageConsumerWorker` | — | Hosted Service |
 
 ---
@@ -101,9 +102,25 @@ O Worker aguarda o RabbitMQ estar saudável antes de iniciar (`healthcheck` + `d
 
 ---
 
+## Armazenamento: MongoDB
+
+Duas collections com propósitos distintos:
+
+| Collection | Schema | Conteúdo |
+|---|---|---|
+| `logs` | Fixo | Registros parseados: `OriginIP`, `RequestURL`, `ResponseTime` |
+| `insights` | Flexível | Resultados do ML.NET — estrutura varia por tipo de análise (spike, trend, cluster, etc.) |
+
+A collection `logs` tem schema fixo e é indexada por `RequestURL` e `ResponseTime` para suportar as queries de treinamento do ML.NET. A collection `insights` usa schema flexível porque cada algoritmo do ML.NET produz documentos estruturalmente diferentes.
+
+O acesso ao MongoDB é abstraído por `ILogRepository` — a implementação `MongoLogRepository` fica em Infrastructure, e o Worker depende apenas da interface.
+
+---
+
 ## Resumo da arquitetura
 
-- **Duas abstrações independentes**: broker (`IMessageConsumer`) e formato de log (`ILogParser`).
+- **Três abstrações independentes**: broker (`IMessageConsumer`), formato de log (`ILogParser`) e persistência (`ILogRepository`).
 - **Mensagem = arquivo completo**: cada mensagem na fila contém N linhas; o worker faz o split e processa linha a linha.
+- **Parse único**: cada linha é parseada uma vez na ingestão e armazenada como documento estruturado — o ML.NET consome dados limpos sem re-parsing.
 - **Performance**: parser posicional com `Span<char>` opera em ~7µs/registro em steady-state (após JIT warmup). O gargalo em desenvolvimento é o logging de Debug (~125µs/registro).
-- A arquitetura está preparada para evolução com novos brokers e novos formatos sem alterar o worker.
+- A arquitetura está preparada para evolução com novos brokers, novos formatos de log e troca de banco sem alterar o worker.

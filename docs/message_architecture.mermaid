@@ -1,5 +1,5 @@
 flowchart TD
-    A["Aplicação iniciada (Program.cs)"] --> B["DI registra IMessageConsumer → RabbitMQConsumer\nILogParser → LogParserResponseTime"]
+    A["Aplicação iniciada (Program.cs)"] --> B["DI registra:\nIMessageConsumer → RabbitMQConsumer\nILogParser → LogParserResponseTime\nILogRepository → MongoLogRepository"]
     B --> C["MessageConsumerWorker (BackgroundService) inicia"]
     C --> D["Worker chama ConsumeAsync(onMessageReceived)"]
     D --> E["RabbitMQConsumer cria conexão e canal\n(RABBITMQ_HOST / RABBITMQ_QUEUE via env vars)"]
@@ -10,10 +10,14 @@ flowchart TD
     I --> J["Para cada linha..."]
     J --> K["ILogParser.TryParseLog(linha)"]
     K --> L{"Parse OK?"}
-    L -- "Sim" --> M["Adiciona LogResponseTime a _parsedLogs\nLogDebug com tempo da etapa"]
+    L -- "Sim" --> M["ILogRepository.InsertAsync(LogResponseTime)\nLogDebug com tempo da etapa"]
     L -- "Não" --> N["LogWarning com a linha que falhou"]
     M --> O["Próxima linha"]
     N --> O
     O --> J
     J -- "Lote concluído" --> P["LogInformation: resumo do lote\n(total, sucessos, tempo médio/registro)"]
     P --> Q["BasicAckAsync — confirma mensagem no broker"]
+
+    M --> DB[("MongoDB\ncollection: logs")]
+
+    style DB fill:#4DB33D,color:#fff,stroke:#3a8a2e

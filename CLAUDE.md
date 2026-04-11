@@ -47,10 +47,12 @@ API (currently independent)
 **LogAnalyzer.Infrastructure** — external integrations:
 - `IMessageConsumer` interface abstracts the message broker
 - `RabbitMQConsumer`: async consumer with manual acknowledgment, reads `RABBITMQ_HOST` / `RABBITMQ_QUEUE` from env vars
+- `ILogRepository` interface abstracts persistence; MongoDB implementation persists `LogResponseTime` to the `logs` collection
+- MongoDB uses two collections: `logs` (fixed schema — parsed log entries) and `insights` (flexible schema — ML results vary by analysis type)
 
 **LogAnalyzer.Worker** — long-running process:
-- `MessageConsumerWorker` (`BackgroundService`): consumes messages from the queue, delegates parsing to `ILogParser`
-- `Program.cs` wires up DI: `IMessageConsumer → RabbitMQConsumer`, `ILogParser → LogParserResponseTime`
+- `MessageConsumerWorker` (`BackgroundService`): consumes messages from the queue, delegates parsing to `ILogParser`, persists results via `ILogRepository`
+- `Program.cs` wires up DI: `IMessageConsumer → RabbitMQConsumer`, `ILogParser → LogParserResponseTime`, `ILogRepository → MongoLogRepository`
 
 **LogAnalyzer.API** — ASP.NET Core Web API (minimal APIs setup, currently has only the default weather scaffold)
 
@@ -62,4 +64,7 @@ API (currently independent)
 
 - `IMessageConsumer` abstraction exists specifically to allow swapping RabbitMQ for Kafka or Azure Service Bus without touching the Worker (see `docs/message_architecture.md`).
 - `ILogParser` is a strategy pattern — new log formats should be new implementations of this interface, not modifications to existing parsers.
+- `ILogRepository` follows the same abstraction rationale — MongoDB is the current implementation, but the Worker depends only on the interface.
+- **MongoDB was chosen for storage** with two collections: `logs` stores parsed log entries (fixed schema, indexed by `RequestURL` and `ResponseTime`); `insights` stores ML.NET results with flexible schema since each analysis type (spike, trend, cluster) produces structurally different documents.
+- **Parse-then-store**: logs are parsed once at ingestion time and stored as structured documents. ML.NET reads clean `IEnumerable<LogResponseTime>` from the repository — no re-parsing at training time.
 - Microsoft.ML 5.0.0 is already referenced in Domain for planned anomaly detection features.
